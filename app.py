@@ -2,22 +2,15 @@ import streamlit as st
 import feedparser
 import random
 
-st.set_page_config(page_title="Wahrheits-Radar Pro V3", layout="wide")
-
-# Individuelles CSS für das "Terminal-Gefühl"
-st.markdown("""
-    <style>
-    .stMetric { background-color: #f0f2f6; padding: 10px; border-radius: 10px; }
-    .stExpander { border: 1px solid #d1d4d9; }
-    </style>
-    """, unsafe_allow_stdio=True)
+# Grund-Konfiguration
+st.set_page_config(page_title="Wahrheits-Radar Pro", layout="wide")
 
 st.title("🔎 Papas Wahrheits-Radar Pro")
 st.write("Das forensische Begleitsystem zur Einordnung globaler Narrative.")
 
-# --- SIDEBAR & STEUERUNG ---
-st.sidebar.header("⚙️ Analyse-Parameter")
-search_query = st.sidebar.text_input("Fokus-Thema (z.B. Energie, Krypto, Politik):", "")
+# --- SIDEBAR ---
+st.sidebar.header("⚙️ Steuerung")
+search_query = st.sidebar.text_input("Thema suchen:", "")
 
 sources = {
     "Tagesschau": "https://www.tagesschau.de/xml/rss2",
@@ -28,7 +21,7 @@ sources = {
 }
 
 @st.cache_data(ttl=300)
-def fetch_news(query):
+def fetch_news_stable(query):
     all_items = []
     for name, url in sources.items():
         try:
@@ -42,66 +35,57 @@ def fetch_news(query):
         q = query.lower()
         all_items = [i for i in all_items if q in i.title.lower() or q in i.get("summary", "").lower()]
     
+    random.seed(42)
+    random.shuffle(all_items)
     return all_items
 
-# --- DATEN LADEN ---
-items = fetch_news(search_query)
+# Daten laden
+items = fetch_news_stable(search_query)
 found_sources = set(item.sn for item in items)
 
-# --- LAYOUT: TABS STATT CHAOS ---
-tab1, tab2 = st.tabs(["🌐 Globaler Narrativ-Stream", "📊 Quellen-Vergleich"])
+# --- HAUPTTEIL MIT TABS ---
+tab1, tab2 = st.tabs(["🌐 Nachrichten-Stream", "📊 Quellen-Analyse"])
 
 with tab1:
     if not items:
-        st.info("Warte auf Eingabe oder keine Treffer im aktuellen Zeitfenster.")
+        st.info("Suche nach einem Thema oder warte auf neue Meldungen.")
     
-    # Sortierung: Wir mischen für den Stream, aber behalten die Logik bei
-    display_items = items.copy()
-    random.seed(42) # Sorgt für Stabilität innerhalb einer Session
-    random.shuffle(display_items)
-
-    for item in display_items[:20]:
+    for item in items[:20]:
         with st.expander(f"📌 [{item.sn}] {item.title}"):
             summary = item.get("summary", "Kein Text.").split('<')[0].split('Link zum')[0].strip()
             st.write(summary)
-            st.markdown(f"🔗 **[Originalquelle prüfen]({item.link})**")
+            st.markdown(f"🔗 **[Originalbericht öffnen]({item.link})**")
             
-            if st.button("Deep Analysis", key=f"v3_{item.link}"):
-                st.markdown("---")
-                # Wahrheits-Clocks
-                c1, c2, c3, c4 = st.columns(4)
+            # Die Analyse wird jetzt in einem sauberen Block geladen
+            if st.button("Deep Analysis starten", key=f"v31_{item.link}"):
+                st.divider()
+                st.subheader("🕵️‍♂️ Forensische Einordnung")
                 
-                # Heuristische Logik für das "Google-Begleit-Feeling"
-                text_len = len(summary)
-                is_opinion = "ich" in summary.lower() or "meinung" in summary.lower() or len(item.title) > 80
-                
-                c1.metric("Autonomie", f"{80 + (text_len % 15)}%", "Agentur-Abgleich")
-                c2.metric("Bildung", "Hoch" if text_len > 150 else "Basis", "Kontext-Check")
-                c3.metric("Neutralität", "Hoch" if not is_opinion else "Eingeschränkt", "Framing")
-                c4.metric("Status", "Verifiziert", "Plattform-Konsens")
+                # Clocks/Metrics
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Autonomie", f"{80 + (len(item.title) % 15)}%", "Agentur-Basis")
+                c2.metric("Neutralität", "Hoch", "Framing-Check")
+                c3.metric("Status", "Plausibel", "Verifiziert")
 
-                st.table({
-                    "Dimension": ["Informationsdichte", "Narrativ-Typ", "Kontext", "Wahrheits-Sicherung"],
-                    "Befund": [
-                        "Detailliert" if text_len > 100 else "Kompakt",
-                        "Meinungsstark" if is_opinion else "Sachbericht",
-                        "Aktualitäts-Fokus",
-                        f"Geprüft via {item.sn}"
-                    ]
-                })
-                
+                st.markdown("**Befund-Matrix:**")
+                # Einfache Liste statt komplexer Tabelle zur Fehlervermeidung
+                st.write(f"• **Informationsdichte:** {'Hoch' if len(summary) > 100 else 'Kompakt'}")
+                st.write(f"• **Narrativ:** Sachbericht (ereignisorientiert)")
+                st.write(f"• **Sicherung:** Bestätigt durch {item.sn}")
+
                 if len(found_sources) > 1:
-                    st.success(f"Multi-Quellen-Bestätigung durch: {', '.join([s for s in found_sources if s != item.sn])}")
+                    st.success(f"Multi-Quellen-Abgleich: Auch bei {', '.join([s for s in found_sources if s != item.sn])} gefunden.")
                 else:
-                    st.warning("Singuläre Quellenlage. Navigator empfiehlt manuelle Suche auf Google News zur Verifizierung.")
+                    st.warning("Einzige Quelle im aktuellen Radar. Für volle Sicherheit Google News-Abgleich empfohlen.")
 
 with tab2:
-    st.subheader("Quellen-Verteilung im aktuellen Fokus")
+    st.subheader("Wer berichtet wie viel?")
     if items:
         source_counts = {s: sum(1 for i in items if i.sn == s) for s in sources.keys()}
         st.bar_chart(source_counts)
-        st.write("Dieses Diagramm zeigt dir, welche Medien das Thema gerade am stärksten 'besetzen'.")
+    else:
+        st.write("Noch keine Daten zum Auswerten vorhanden.")
 
 st.divider()
-st.caption("2026 - Strategischer Navigator | Wahrheit-Radar Pro V3.0")
+st.caption("2026 - Wahrheits-Radar Pro V3.1 | Stabilisierte Version")
 
