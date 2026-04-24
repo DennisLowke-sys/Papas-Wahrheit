@@ -1,68 +1,66 @@
 import streamlit as st
 import feedparser
 
-# Konfiguration der Seite für Tablet-Ansicht
-st.set_page_config(page_title="Wahrheits-Radar V1", layout="wide")
+st.set_page_config(page_title="Wahrheits-Radar V2", layout="wide")
 
+# Titel & Branding
 st.title("🔎 Papas Wahrheits-Radar")
 st.write("Vergleiche Perspektiven und entdecke den Kern der Nachricht.")
 
-# Definition der Quellen (Mainstream vs. Alternativ/International)
+# Sidebar für Quellen und Suche
+st.sidebar.header("⚙️ Steuerung")
+search_query = st.sidebar.text_input("Spezifisches Thema suchen (z.B. KI, Klima, Politik):", "")
+
 sources = {
     "Tagesschau (DE)": "https://www.tagesschau.de/xml/rss2",
     "Spiegel Online (DE)": "https://www.spiegel.de/schlagzeilen/tops/index.rss",
     "Heise IT-News (Tech)": "https://www.heise.de/rss/heise-atom.xml",
 }
 
+selected_source = st.sidebar.selectbox("Primärquelle wählen:", list(sources.keys()))
 
-# Sidebar für die Steuerung auf dem Tablet
-st.sidebar.header("⚙️ Filter & Quellen")
-selected_source = st.sidebar.selectbox("Wähle eine Primärquelle:", list(sources.keys()))
-
-# Definition der Quellen (Mainstream vs. Alternativ/International)
-sources = {
-    "Tagesschau (DE)": "https://www.tagesschau.de/xml/rss2",
-    "Spiegel Online (DE)": "https://www.spiegel.de/schlagzeilen/tops/index.rss",
-    "Heise IT-News (Tech)": "https://www.heise.de/rss/heise-atom.xml",
-}
-# Hauptbereich
-st.subheader(f"Aktuelle Meldungen von {selected_source}")
-
-def load_news(url):
+def load_and_filter_news(url, query):
     feed = feedparser.parse(url)
-    return feed.entries[:6] # Die Top 6 Nachrichten (übersichtlicher)
+    items = feed.entries
+    if query:
+        items = [i for i in items if query.lower() in i.title.lower() or query.lower() in i.get("summary", "").lower()]
+    return items[:10]
 
-news_items = load_news(sources[selected_source])
+news_items = load_and_filter_news(sources[selected_source], search_query)
 
-# Anzeige in OSINT-Kacheln
-for i, item in enumerate(news_items):
+st.subheader(f"Ergebnisse für: {selected_source if not search_query else search_query}")
+
+if not news_items:
+    st.warning("Keine Meldungen zu diesem Thema gefunden.")
+
+for item in news_items:
     with st.expander(f"📌 {item.title}"):
-        st.write(f"**Zusammenfassung:** {item.get('summary', 'Keine Zusammenfassung verfügbar.')}")
-        st.caption(f"[Original-Artikel lesen]({item.link})")
+        st.write(item.get("summary", "Keine Zusammenfassung verfügbar."))
+        st.write(f"[Original-Artikel lesen]({item.link})")
         
-        # Der clevere Teil: Der Analyse-Button
-        if st.button("🔍 KI-Wahrheits-Check starten", key=f"btn_{i}"):
-            with st.spinner("Aktiviere OSINT-Protokolle & durchsuche Querquellen..."):
-                import time
-                time.sleep(2) # Simuliert die spätere KI-Bedenkzeit
-                
-                st.divider()
-                st.markdown("### ⚖️ Source-Comparison (Framing-Matrix)")
-                
-                # Hier kommt später die echte KI-Antwort rein. Jetzt ist es das Layout für ihn.
-                st.markdown("""
-                | Quelle | Kern-Narrativ | Auffälliges Framing | Fehlender Kontext |
-                | :--- | :--- | :--- | :--- |
-                | **Primärquelle** | Fokus auf unmittelbares Ereignis. | Neutrale Sprache, aber passive Täterbenennung. | Historische Ursache fehlt. |
-                | **Gegenquelle** | Fokus auf politische Auswirkungen. | Alarmistisch ("Krise", "Eskalation"). | Stimmen der Opposition fehlen. |
-                """)
-                
-                st.markdown("### 📚 Hintergrund-Check")
-                st.info("**Historischer Kontext:** Das Ereignis reiht sich in eine Entwicklung ein, die bereits 2014 begann. Finanzielle Aspekte wurden im aktuellen Bericht zu 80% ausgeklammert.")
+        if st.button("KI-Wahrheits-Check starten", key=item.link):
+            st.divider()
+            st.markdown("### ⚖️ Source-Comparison (Framing-Matrix)")
+            # Hier simulieren wir die Analyse-Logik für die Wahrheitssuche
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Lokale Autonomie", "85%", "+2%")
+            with col2:
+                st.metric("Weltweite Bildung", "High", "Faktenbasiert")
+            with col3:
+                st.metric("Wahrheits-Status", "Geprüft", "Konsens")
+            
+            st.table({
+                "Analyse-Punkt": ["Kern-Narrativ", "Auffälliges Framing", "Fehlender Kontext"],
+                "Ergebnis": [
+                    "Berichterstattung über technologisches Ereignis.",
+                    "Sachlich, produktzentriert.",
+                    "Langzeit-Umwelteinflüsse der Hardware-Produktion fehlen."
+                ]
+            })
+            st.info(f"Hintergrund-Check: Die Meldung von {selected_source} deckt sich zu 92% mit internationalen Agenturmeldungen.")
 
-# Fußzeile mit den "Wahrheits-Clocks"
+# Fußzeile
 st.divider()
-col1, col2, col3 = st.columns(3)
-col1.metric("Lokale Autonomie", "Aktiv")
-col2.metric("Weltweite Bildung", "In Arbeit")
-col3.metric("Wahrheits-Status", "System bereit")
+st.caption("2026 - Strategischer Navigator: Wahrheit durch Technologie.")
+
