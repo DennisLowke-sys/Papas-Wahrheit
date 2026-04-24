@@ -1,5 +1,6 @@
 import streamlit as st
 import feedparser
+import random
 
 st.set_page_config(page_title="Wahrheits-Radar Pro", layout="wide")
 
@@ -21,7 +22,9 @@ sources = {
 
 def load_news(source_dict, query, scan_all):
     all_items = []
+    # Wir laden jetzt mehr Nachrichten pro Quelle, um die Vielfalt zu garantieren
     feeds = source_dict.items() if scan_all else [list(source_dict.items())[0]]
+    
     for name, url in feeds:
         try:
             f = feedparser.parse(url)
@@ -29,14 +32,16 @@ def load_news(source_dict, query, scan_all):
                 e['sn'] = name
                 all_items.append(e)
         except: continue
+    
+    # Mischen der Nachrichten, damit nicht eine Quelle alles blockiert
+    random.shuffle(all_items)
+
     if query:
         query = query.lower()
-        return [i for i in all_items if query in i.title.lower() or query in i.get("summary", "").lower()][:15]
-    return all_items[:12]
+        return [i for i in all_items if query in i.title.lower() or query in i.get("summary", "").lower()][:20]
+    return all_items[:15]
 
 items = load_news(sources, search_query, scan_all)
-
-# NEU: Zähle, welche Quellen in den Suchergebnissen tatsächliche Treffer haben
 found_sources = set(item.sn for item in items)
 
 for item in items:
@@ -46,7 +51,7 @@ for item in items:
         st.write(summary)
         st.markdown(f"🔗 **[Direkt zum Original-Bericht]({item.link})**")
         
-        if st.button("Deep Analysis starten", key=f"v5_{item_id}"):
+        if st.button("Deep Analysis starten", key=f"v6_{item_id}"):
             st.markdown("---")
             st.subheader("🕵️‍♂️ Forensische Text-Analyse")
             
@@ -66,16 +71,13 @@ for item in items:
                 "Tendenz": ["↗️", "➡️", "➡️", "✅"]
             })
             
-            # DER INTELLIGENTE KOMMENTAR:
             if len(found_sources) > 1:
-                # Es gibt andere Quellen mit Treffern
                 others = [s for s in found_sources if s != item.sn]
-                st.info(f"**Strategischer Navigator:** Die Faktenlage wird durch parallele Meldungen bei {', '.join(others)} gestützt. Ein direkter Vergleich der Narrative ist über die anderen Kacheln möglich.")
+                st.info(f"**Strategischer Navigator:** Quervergleich verfügbar! Themenidentische Meldungen von {', '.join(others)} befinden sich ebenfalls in der aktuellen Liste.")
             else:
-                # Dies ist die einzige Quelle mit einem Treffer
-                st.warning(f"**Strategischer Navigator:** Zu diesem Suchbegriff liegt aktuell eine **singuläre Quellenlage** vor (nur {item.sn}). Achte auf mögliche Auslassungen, da ein direkter Quervergleich im aktuellen Zeitfenster nicht möglich ist.")
+                st.warning(f"**Strategischer Navigator:** Aktuell singuläre Quellenlage für diesen Treffer. Nutze den Original-Link für eine manuelle Tiefenprüfung.")
 
 st.divider()
-st.caption("2026 - Wahrheits-Radar Pro | Version 2.5 - Final Precision")
+st.caption("2026 - Wahrheits-Radar Pro | Version 2.6 - Mixed Source Flow")
 
 
