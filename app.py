@@ -20,10 +20,11 @@ sources = {
     "Heise": "https://www.heise.de/rss/heise-atom.xml"
 }
 
-def load_news(source_dict, query, scan_all):
+# NEU: Diese Funktion speichert die Liste, damit sie beim Klicken nicht wegspringt
+@st.cache_data(ttl=300) # Speichert die News für 5 Minuten stabil
+def load_news_stable(query, scan_all_active):
     all_items = []
-    # Wir laden jetzt mehr Nachrichten pro Quelle, um die Vielfalt zu garantieren
-    feeds = source_dict.items() if scan_all else [list(source_dict.items())[0]]
+    feeds = sources.items() if scan_all_active else [list(sources.items())[0]]
     
     for name, url in feeds:
         try:
@@ -33,25 +34,28 @@ def load_news(source_dict, query, scan_all):
                 all_items.append(e)
         except: continue
     
-    # Mischen der Nachrichten, damit nicht eine Quelle alles blockiert
     random.shuffle(all_items)
-
+    
     if query:
-        query = query.lower()
-        return [i for i in all_items if query in i.title.lower() or query in i.get("summary", "").lower()][:20]
+        q = query.lower()
+        return [i for i in all_items if q in i.title.lower() or q in i.get("summary", "").lower()][:20]
     return all_items[:15]
 
-items = load_news(sources, search_query, scan_all)
+# Lade die stabilen Nachrichten
+items = load_news_stable(search_query, scan_all)
 found_sources = set(item.sn for item in items)
 
 for item in items:
+    # Eindeutiger Schlüssel für Streamlit
     item_id = item.link
+    
     with st.expander(f"📌 [{item.sn}] {item.title}"):
         summary = item.get("summary", "Kein Text.").split('<')[0].split('Link zum')[0].strip()
         st.write(summary)
         st.markdown(f"🔗 **[Direkt zum Original-Bericht]({item.link})**")
         
-        if st.button("Deep Analysis starten", key=f"v6_{item_id}"):
+        # Der Button bleibt jetzt stabil, weil die Liste nicht mehr neu gewürfelt wird
+        if st.button("Deep Analysis starten", key=f"v7_{item_id}"):
             st.markdown("---")
             st.subheader("🕵️‍♂️ Forensische Text-Analyse")
             
@@ -78,6 +82,5 @@ for item in items:
                 st.warning(f"**Strategischer Navigator:** Aktuell singuläre Quellenlage für diesen Treffer. Nutze den Original-Link für eine manuelle Tiefenprüfung.")
 
 st.divider()
-st.caption("2026 - Wahrheits-Radar Pro | Version 2.6 - Mixed Source Flow")
-
+st.caption("2026 - Wahrheits-Radar Pro | Version 2.7 - Stable Source Logic")
 
